@@ -50,6 +50,8 @@ var WhereBuilder = module.exports = function WhereBuilder(schema, currentTable, 
   this.schema = schema;
   this.currentTable = _.find(_.values(schema), {tableName: currentTable}).identity;
 
+  this.wlNext = {};
+
   if(options && hop(options, 'parameterized')) {
     this.parameterized = options.parameterized;
   }
@@ -60,6 +62,11 @@ var WhereBuilder = module.exports = function WhereBuilder(schema, currentTable, 
 
   if(options && hop(options, 'escapeCharacter')) {
     this.escapeCharacter = options.escapeCharacter;
+  }
+
+  // Add support for WL Next features
+  if(options && hop(options, 'wlNext')) {
+    this.wlNext = options.wlNext;
   }
 
   return this;
@@ -109,8 +116,9 @@ WhereBuilder.prototype.single = function single(queryObject, options) {
     var childPK;
 
     _.keys(this.schema[this.currentTable].attributes).forEach(function(attr) {
-      if(!hop(self.schema[self.currentTable].attributes[attr], 'primaryKey')) return;
-      childPK = attr;
+      var expandedAttr = self.schema[self.currentTable].attributes[attr];
+      if(!hop(expandedAttr, 'primaryKey')) return;
+      childPK = expandedAttr.columnName || attr;
     });
 
     queryObject.sort = {};
@@ -130,7 +138,8 @@ WhereBuilder.prototype.single = function single(queryObject, options) {
   var _options = _.assign({
     parameterized: this.parameterized,
     caseSensitive: this.caseSensitive,
-    escapeCharacter: this.escapeCharacter
+    escapeCharacter: this.escapeCharacter,
+    wlNext: this.wlNext
   }, options);
 
   this.criteriaParser = new CriteriaParser(this.currentTable, this.schema, _options);
@@ -194,7 +203,8 @@ WhereBuilder.prototype.complex = function complex(queryObject, options) {
       _options = _.assign({
         parameterized: self.parameterized,
         caseSensitive: self.caseSensitive,
-        escapeCharacter: self.escapeCharacter
+        escapeCharacter: self.escapeCharacter,
+        wlNext: self.wlNext
       }, options);
 
       // Build the WHERE part of the query string
@@ -204,8 +214,9 @@ WhereBuilder.prototype.complex = function complex(queryObject, options) {
       if(!hop(population.criteria, 'sort')) {
 
         _.keys(self.schema[populationAlias].attributes).forEach(function(attr) {
-          if(!hop(self.schema[populationAlias].attributes[attr], 'primaryKey')) return;
-          childPK = attr;
+          var expandedAttr = self.schema[populationAlias].attributes[attr];
+          if(!hop(expandedAttr, 'primaryKey')) return;
+          childPK = expandedAttr.columnName || attr;
         });
 
         population.criteria.sort = {};
@@ -249,7 +260,8 @@ WhereBuilder.prototype.complex = function complex(queryObject, options) {
       _options = _.assign({
         parameterized: self.parameterized,
         caseSensitive: self.caseSensitive,
-        escapeCharacter: self.escapeCharacter
+        escapeCharacter: self.escapeCharacter,
+        wlNext: self.wlNext
       }, options);
 
       // Build the WHERE part of the query string
@@ -259,8 +271,9 @@ WhereBuilder.prototype.complex = function complex(queryObject, options) {
       if(!hop(stage2.criteria, 'sort')) {
 
         _.keys(self.schema[stage2ChildAlias].attributes).forEach(function(attr) {
-          if(!hop(self.schema[stage2ChildAlias].attributes[attr], 'primaryKey')) return;
-          childPK = attr;
+          var expandedAttr = self.schema[stage2ChildAlias].attributes[attr];
+          if(!hop(expandedAttr, 'primaryKey')) return;
+          childPK = expandedAttr.columnName || attr;
         });
 
         stage2.criteria.sort = {};
@@ -276,7 +289,7 @@ WhereBuilder.prototype.complex = function complex(queryObject, options) {
       _.keys(self.schema[stage2ChildAlias].attributes).forEach(function(key) {
         var schema = self.schema[stage2ChildAlias].attributes[key];
         if(hop(schema, 'collection')) return;
-        selectKeys.push({ table: stage2.child, key: key });
+        selectKeys.push({ table: stage2.child, key: schema.columnName || key });
       });
 
       queryString += '(SELECT ';

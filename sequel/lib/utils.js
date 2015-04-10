@@ -37,7 +37,10 @@ utils.object.hasOwnProperty = function(obj, prop) {
  */
 
 utils.escapeName = function escapeName(name, escapeCharacter) {
-  return '' + escapeCharacter + name + escapeCharacter;
+  var regex = new RegExp(escapeCharacter, 'g');
+  var replacementString = '' + escapeCharacter + escapeCharacter;
+  var replacementDot = '\.';
+  return '' + escapeCharacter + name.replace(regex, replacementString).replace(/\./g, replacementDot) + escapeCharacter;
 };
 
 /**
@@ -74,7 +77,7 @@ utils.mapAttributes = function(data, options) {
       params.push('$' + i);
     }
     else {
-      if(value === null) {
+      if(value === null || value === undefined) {
         params.push('null');
       }
       else {
@@ -116,6 +119,28 @@ utils.prepareValue = function(value) {
   if (Buffer.isBuffer(value)) {
     value = '\\x' + value.toString('hex');
   }
+
+  return value;
+};
+
+/**
+ * Escape Strings
+ */
+
+utils.escapeString = function(value) {
+  if(!_.isString(value)) return value;
+
+  value = value.replace(/[\0\n\r\b\t\\\'\"\x1a]/g, function(s) {
+    switch(s) {
+      case "\0": return "\\0";
+      case "\n": return "\\n";
+      case "\r": return "\\r";
+      case "\b": return "\\b";
+      case "\t": return "\\t";
+      case "\x1a": return "\\Z";
+      default: return "\\"+s;
+    }
+  });
 
   return value;
 };
