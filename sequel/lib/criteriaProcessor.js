@@ -28,6 +28,7 @@ var CriteriaProcessor = module.exports = function CriteriaProcessor(currentTable
   this.parameterized = true;
   this.caseSensitive = true;
   this.escapeCharacter = '"';
+  this.wlNext = {};
 
   if(options && utils.object.hasOwnProperty(options, 'parameterized')) {
     this.parameterized = options.parameterized;
@@ -43,6 +44,10 @@ var CriteriaProcessor = module.exports = function CriteriaProcessor(currentTable
 
   if(options && utils.object.hasOwnProperty(options, 'paramCount')) {
     this.paramCount = options.paramCount;
+  }
+
+  if(options && utils.object.hasOwnProperty(options, 'wlNext')) {
+    this.wlNext = options.wlNext;
   }
 
   return this;
@@ -192,11 +197,20 @@ CriteriaProcessor.prototype.like = function like(val) {
     var caseSensitive = true;
 
     // Check if parent is a string, if so make sure it's case sensitive.
-    if(self.currentSchema[parent] && self.currentSchema[parent].type === 'text') {
+    if(self.currentSchema[parent] &&
+        (self.currentSchema[parent] === 'text' ||
+         self.currentSchema[parent] === 'string' ||
+         self.currentSchema[parent].type === 'string' ||
+         self.currentSchema[parent].type === 'text')) {
       caseSensitive = false;
     }
 
-    var comparator = this.caseSensitive ? 'ILIKE' : 'LIKE';
+    var comparator = self.caseSensitive ? 'ILIKE' : 'LIKE';
+
+    // Override comparator with WL Next features
+    if(hop(self.wlNext, 'caseSensitive') && self.wlNext.caseSensitive) {
+      comparator = 'LIKE';
+    }
 
     self.process(parent, val[parent], comparator, caseSensitive);
     self.queryString += ' AND ';
@@ -222,6 +236,11 @@ CriteriaProcessor.prototype.and = function and(key, val) {
     caseSensitive = false;
   }
 
+  // Override case sensitive with WL Next features
+  if(hop(this.wlNext, 'caseSensitive') && this.wlNext.caseSensitive) {
+    caseSensitive = true;
+  }
+
   this.process(key, val, '=', caseSensitive);
   this.queryString += ' AND ';
 };
@@ -238,22 +257,28 @@ CriteriaProcessor.prototype._in = function _in(key, val) {
   // Set case sensitive by default
   var caseSensitivity = true;
 
-  // Set lower logic to true
-  var lower = true;
+  // Set lower logic to false
+  var lower = false;
 
   // Check if key is a string
-  if(self.currentSchema[key] && self.currentSchema[key].type === 'text') {
-    caseSensitivity = false;
+  var schema = self.currentSchema && self.currentSchema[key];
+  if(!_.isPlainObject(schema)) {
+    schema = { type: schema };
   }
 
-  // Check if key is a number or anything that can't be lowercased
-  if(self.currentSchema[key] && self.currentSchema[key].type === 'integer' || self.currentSchema[key].type === 'float') {
-    lower = false;
+  if(schema && schema.type === 'text' || schema.type === 'string') {
+    caseSensitivity = false;
+    lower = true;
   }
 
   // Override caseSensitivity for databases that don't support it
   if(this.caseSensitive) {
     caseSensitivity = false;
+  }
+
+  // Add support for overriding case sensitivity with WL Next features
+  if(hop(self.wlNext, 'caseSensitive') && self.wlNext.caseSensitive) {
+    caseSensitivity = true;
   }
 
   // Check case sensitivity to decide if LOWER logic is used
@@ -283,8 +308,9 @@ CriteriaProcessor.prototype._in = function _in(key, val) {
     }
     else {
       if(_.isString(value)) {
-        value = '"' + value + '"';
+        value = '"' + utils.escapeString(value) + '"';
       }
+
       self.queryString += value + ',';
     }
 
@@ -311,9 +337,16 @@ CriteriaProcessor.prototype.process = function process(parent, value, combinator
     caseSensitive = false;
   }
 
+  // Add support for overriding case sensitivity with WL Next features
+  if(hop(self.wlNext, 'caseSensitive') && self.wlNext.caseSensitive) {
+    caseSensitive = true;
+  }
+
+
   // Expand criteria object
   function expandCriteria(obj) {
     var _param;
+    var lower = false;
 
     _.keys(obj).forEach(function(key) {
 
@@ -322,9 +355,18 @@ CriteriaProcessor.prototype.process = function process(parent, value, combinator
         return expandCriteria(obj[key]);
       }
 
+      // Check if key is a string
+      if (self.currentSchema[parent] &&
+           (self.currentSchema[parent].type === 'text' ||
+            self.currentSchema[parent].type === 'string' ||
+            self.currentSchema[parent] === 'string' ||
+            self.currentSchema[parent] === 'text')) {
+        lower = true;
+      }
+
       // Check if value is a string and if so add LOWER logic
       // to work with case in-sensitive queries
-      if(!caseSensitive && _.isString(obj[key])) {
+      if(!caseSensitive && _.isString(obj[key]) && lower) {
         _param = 'LOWER(' + utils.escapeName(self.currentTable, self.escapeCharacter) + '.' + utils.escapeName(parent, self.escapeCharacter) + ')';
         obj[key] = obj[key].toLowerCase();
       } else {
@@ -349,9 +391,21 @@ CriteriaProcessor.prototype.process = function process(parent, value, combinator
     return;
   }
 
+  // Set lower logic to true
+  var lower = false;
+
+  // Check if parent is a number or anything that can't be lowercased
+  if(self.currentSchema[parent] &&
+      (self.currentSchema[parent] === 'text' ||
+       self.currentSchema[parent] === 'string' ||
+       self.currentSchema[parent].type === 'string' ||
+       self.currentSchema[parent].type === 'text')) {
+    lower = true;
+  }
+
   // Check if value is a string and if so add LOWER logic
   // to work with case in-sensitive queries
-  if(!caseSensitive && typeof value === 'string') {
+  if(!caseSensitive && lower && _.isString(value)) {
 
     // ADD LOWER to parent
     parent = 'LOWER(' + utils.escapeName(self.currentTable, self.escapeCharacter) + '.' + utils.escapeName(parent, self.escapeCharacter) + ')';
@@ -379,7 +433,11 @@ CriteriaProcessor.prototype.process = function process(parent, value, combinator
           ('00' + value.getMinutes()).slice(-2) + ':' +
           ('00' + value.getSeconds()).slice(-2);
       }
-      if (typeof value === 'string') {value = '"' + value +'"';}
+
+      if (_.isString(value)) {
+        value = '"' + utils.escapeString(value) +'"';
+      }
+
       this.queryString += parent + ' ' + combinator + ' ' + value;
     }
   }
@@ -426,7 +484,7 @@ CriteriaProcessor.prototype.prepareCriterion = function prepareCriterion(key, va
       }
       else {
         if(_.isString(value) && !escapedDate) {
-          value = '"' + value + '"';
+          value = '"' + utils.escapeString(value) + '"';
         }
         str = '< ' + value;
       }
@@ -442,7 +500,7 @@ CriteriaProcessor.prototype.prepareCriterion = function prepareCriterion(key, va
       }
       else {
         if(_.isString(value) && !escapedDate) {
-          value = '"' + value + '"';
+          value = '"' + utils.escapeString(value) + '"';
         }
         str = '<= ' + value;
       }
@@ -458,7 +516,7 @@ CriteriaProcessor.prototype.prepareCriterion = function prepareCriterion(key, va
       }
       else {
         if(_.isString(value) && !escapedDate) {
-          value = '"' + value + '"';
+          value = '"' + utils.escapeString(value) + '"';
         }
         str = '> ' + value;
       }
@@ -474,7 +532,7 @@ CriteriaProcessor.prototype.prepareCriterion = function prepareCriterion(key, va
       }
       else {
         if(_.isString(value) && !escapedDate) {
-          value = '"' + value + '"';
+          value = '"' + utils.escapeString(value) + '"';
         }
         str = '>= ' + value;
       }
@@ -510,7 +568,7 @@ CriteriaProcessor.prototype.prepareCriterion = function prepareCriterion(key, va
             value.forEach(function(val) {
 
               if(_.isString(val)) {
-                val = '"' + val + '"';
+                val = '"' + utils.escapeString(val) + '"';
               }
 
               str += val + ',';
@@ -528,7 +586,7 @@ CriteriaProcessor.prototype.prepareCriterion = function prepareCriterion(key, va
           }
           else {
             if(_.isString(value)) {
-              value = '"' + value + '"';
+              value = '"' + utils.escapeString(value) + '"';
             }
 
             str = '<> ' + value;
@@ -544,6 +602,11 @@ CriteriaProcessor.prototype.prepareCriterion = function prepareCriterion(key, va
         comparator = 'ILIKE';
       }
       else {
+        comparator = 'LIKE';
+      }
+
+      // Override comparator with WL Next features
+      if(hop(self.wlNext, 'caseSensitive') && self.wlNext.caseSensitive) {
         comparator = 'LIKE';
       }
 
@@ -566,6 +629,11 @@ CriteriaProcessor.prototype.prepareCriterion = function prepareCriterion(key, va
         comparator = 'LIKE';
       }
 
+      // Override comparator with WL Next features
+      if(hop(self.wlNext, 'caseSensitive') && self.wlNext.caseSensitive) {
+        comparator = 'LIKE';
+      }
+
       if(this.parameterized) {
         this.values.push('%' + value + '%');
         str = comparator + ' ' + '$' + this.paramCount;
@@ -585,6 +653,11 @@ CriteriaProcessor.prototype.prepareCriterion = function prepareCriterion(key, va
         comparator = 'LIKE';
       }
 
+      // Override comparator with WL Next features
+      if(hop(self.wlNext, 'caseSensitive') && self.wlNext.caseSensitive) {
+        comparator = 'LIKE';
+      }
+
       if(this.parameterized) {
         this.values.push(value + '%');
         str = comparator + ' ' + '$' + this.paramCount;
@@ -601,6 +674,11 @@ CriteriaProcessor.prototype.prepareCriterion = function prepareCriterion(key, va
         comparator = 'ILIKE';
       }
       else {
+        comparator = 'LIKE';
+      }
+
+      // Override comparator with WL Next features
+      if(hop(self.wlNext, 'caseSensitive') && self.wlNext.caseSensitive) {
         comparator = 'LIKE';
       }
 
