@@ -10,9 +10,12 @@
     "url": "git://github.com/balderdashy/waterline-sequel.git"
   },
   "dependencies": {
-    "lodash": "~2.4.1"
+    "lodash": "2.4.1"
   },
-  "devDependencies": {},
+  "devDependencies": {
+      "should": "8.2.2",
+      "mocha": "2.4.5"
+  },
   "scripts": {},
   "main": "sequel/index",
   "directories": {

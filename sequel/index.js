@@ -150,6 +150,30 @@ Sequel.prototype.update = function update(currentTable, queryObject, data) {
     escapeInserts: this.escapeInserts
   };
 
+  if (typeof this.schema[currentTable] === "undefined") {
+    throw new Error("Could not find schema for current table: " + currentTable);
+  }
+  if (typeof this.schema[currentTable].attributes === "undefined") {
+    throw new Error("Could not find attributes for current table: " + currentTable);
+  }
+  var attrs = this.schema[currentTable].attributes;
+  for (var columnName in attrs) {
+    var vals = attrs[columnName];
+    for (var attr in vals) {
+      if (attr === 'primaryKey') {
+        // There could be a case where you use a custom columnName and
+        // bypass the check. I'm not sure how this interacts with the
+        // `data` value above, so we do the naive thing and check for the
+        // columnName-as-attribute matching a key in `data`.
+        if (typeof data !== "undefined" && typeof data[columnName] !== "undefined") {
+          var err = new Error("Cannot mutate primary key " + columnName + " on " + currentTable);
+          err.data = data;
+          throw err;
+        }
+      }
+    }
+  }
+
   // Get the attribute identity (as opposed to the table name)
   var identity = _.find(_.values(this.schema), {tableName: currentTable}).identity;
   // Create the query with the tablename aliased as the identity (in case they are different)
