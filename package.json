@@ -3,11 +3,11 @@
   "description": "A helper library for generating SQL queries from the Waterline Query Language.",
   "version": "1.1.0",
   "author": "Cody Stoltman <particlebanana@gmail.com>",
-  "url": "http://github.com/balderdashy/waterline-sequel",
+  "url": "https://github.com/Shyp/waterline-sequel",
   "keywords": [],
   "repository": {
     "type": "git",
-    "url": "git://github.com/balderdashy/waterline-sequel.git"
+    "url": "git://github.com/Shyp/waterline-sequel.git"
   },
   "dependencies": {
     "lodash": "2.4.1"
@@ -22,5 +22,5 @@
     "sequel": "./sequel"
   },
   "license": "MIT",
-  "bugs": "https://github.com/balderdashy/waterline-sequel/issues"
+  "bugs": "https://github.com/Shyp/waterline-sequel/issues"
 }
