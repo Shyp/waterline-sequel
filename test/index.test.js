@@ -64,4 +64,12 @@ describe('update', function() {
     val.query.trim().should.equal('UPDATE "users" AS "users" SET balance = $1');
     val.values.should.eql([3]);
   });
+
+  it('throws an error if the operator is unknown', function() {
+    var sequel = new Sequel(userSchema, {});
+    sequel.find.bind(sequel, 'users', { balance: { 'in': [ 1, 2 ] } }).should.throw(Error, {
+      message: "Unknown filtering operator: \"in\". Should be 'startsWith', '>', 'contains' or similar",
+      operator: 'in',
+    });
+  });
 });
