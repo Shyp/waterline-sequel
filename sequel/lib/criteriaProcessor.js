@@ -272,8 +272,17 @@ CriteriaProcessor.prototype._in = function _in(key, val) {
   }
 
   // Override caseSensitivity for databases that don't support it
+  //
+  // [BB] This seems backwards, shouldn't set to false when true,
+  // but afraid to change since it's been working this way all along.
   if(this.caseSensitive) {
     caseSensitivity = false;
+  }
+
+  // Enum types should always be case-sensitive
+  if (schema && schema.type === 'enum') {
+    caseSensitivity = true;
+    lower = false;
   }
 
   // Add support for overriding case sensitivity with WL Next features
@@ -342,6 +351,10 @@ CriteriaProcessor.prototype.process = function process(parent, value, combinator
     caseSensitive = true;
   }
 
+  // [BB] enums are always case-sensitive
+  if (self.currentSchema[parent] && self.currentSchema[parent].type === 'enum') {
+    caseSensitive = true;
+  }
 
   // Expand criteria object
   function expandCriteria(obj) {
