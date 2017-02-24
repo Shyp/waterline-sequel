@@ -1,7 +1,7 @@
 {
   "name": "waterline-sequel",
   "description": "A helper library for generating SQL queries from the Waterline Query Language.",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "author": "Cody Stoltman <particlebanana@gmail.com>",
   "url": "https://github.com/Shyp/waterline-sequel",
   "keywords": [],
