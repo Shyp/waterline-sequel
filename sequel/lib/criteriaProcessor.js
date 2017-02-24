@@ -205,12 +205,8 @@ CriteriaProcessor.prototype.like = function like(val) {
       caseSensitive = false;
     }
 
-    var comparator = self.caseSensitive ? 'ILIKE' : 'LIKE';
-
-    // Override comparator with WL Next features
-    if(hop(self.wlNext, 'caseSensitive') && self.wlNext.caseSensitive) {
-      comparator = 'LIKE';
-    }
+    // [Shyp] This should always be case-insensitive.
+    var comparator = 'ILIKE';
 
     self.process(parent, val[parent], comparator, caseSensitive);
     self.queryString += ' AND ';
@@ -610,18 +606,8 @@ CriteriaProcessor.prototype.prepareCriterion = function prepareCriterion(key, va
       break;
 
     case 'like':
-
-      if(this.caseSensitive) {
-        comparator = 'ILIKE';
-      }
-      else {
-        comparator = 'LIKE';
-      }
-
-      // Override comparator with WL Next features
-      if(hop(self.wlNext, 'caseSensitive') && self.wlNext.caseSensitive) {
-        comparator = 'LIKE';
-      }
+      // [Shyp] This should always be case-insensitive.
+      comparator = 'ILIKE';
 
       if(this.parameterized) {
         this.values.push(value);
@@ -634,18 +620,8 @@ CriteriaProcessor.prototype.prepareCriterion = function prepareCriterion(key, va
       break;
 
     case 'contains':
-
-      if(this.caseSensitive) {
-        comparator = 'ILIKE';
-      }
-      else {
-        comparator = 'LIKE';
-      }
-
-      // Override comparator with WL Next features
-      if(hop(self.wlNext, 'caseSensitive') && self.wlNext.caseSensitive) {
-        comparator = 'LIKE';
-      }
+      // [Shyp] This should always be case-insensitive.
+      comparator = 'ILIKE';
 
       if(this.parameterized) {
         this.values.push('%' + value + '%');
@@ -658,18 +634,8 @@ CriteriaProcessor.prototype.prepareCriterion = function prepareCriterion(key, va
       break;
 
     case 'startsWith':
-
-      if(this.caseSensitive) {
-        comparator = 'ILIKE';
-      }
-      else {
-        comparator = 'LIKE';
-      }
-
-      // Override comparator with WL Next features
-      if(hop(self.wlNext, 'caseSensitive') && self.wlNext.caseSensitive) {
-        comparator = 'LIKE';
-      }
+      // [Shyp] This should always be case-insensitive.
+      comparator = 'ILIKE';
 
       if(this.parameterized) {
         this.values.push(value + '%');
@@ -682,18 +648,8 @@ CriteriaProcessor.prototype.prepareCriterion = function prepareCriterion(key, va
       break;
 
     case 'endsWith':
-
-      if(this.caseSensitive) {
-        comparator = 'ILIKE';
-      }
-      else {
-        comparator = 'LIKE';
-      }
-
-      // Override comparator with WL Next features
-      if(hop(self.wlNext, 'caseSensitive') && self.wlNext.caseSensitive) {
-        comparator = 'LIKE';
-      }
+      // [Shyp] This should always be case-insensitive.
+      comparator = 'ILIKE';
 
       if(this.parameterized) {
         this.values.push('%' + value);
